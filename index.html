@@ -1,244 +1,104 @@
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#183d2b">
-  <title>Fratelli Wine</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f5f6f2;
-      color: #203328;
-    }
-    header {
-      background: #183d2b;
-      color: white;
-      padding: 24px 18px;
-      text-align: center;
-    }
-    .brand {
-      font-family: Georgia, serif;
-      font-size: 30px;
-      letter-spacing: 1px;
-      margin: 0;
-    }
-    header p { margin: 8px 0 0; font-size: 14px; }
-    main {
-      width: 100%;
-      max-width: 650px;
-      margin: 24px auto;
-      padding: 0 16px;
-    }
-    .search-box, .wine-card {
-      background: white;
-      border-radius: 14px;
-      padding: 18px;
-      box-shadow: 0 3px 12px #183d2b12;
-      margin-bottom: 18px;
-    }
-    label {
-      display: block;
-      font-weight: bold;
-      margin-bottom: 10px;
-    }
-    input {
-      width: 100%;
-      padding: 14px;
-      border: 1px solid #cbd4cc;
-      border-radius: 9px;
-      font-size: 16px;
-    }
-    .hint { color: #657168; font-size: 13px; }
-    .wine-heading {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    .wine-heading h2 {
-      font-size: 22px;
-      margin: 0;
-    }
-    .type {
-      background: #e8f1e8;
-      color: #24583a;
-      padding: 7px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: bold;
-    }
-    .tank { font-size: 15px; margin: 12px 0; }
-    .results {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-      margin-top: 18px;
-    }
-    .result {
-      background: #f5f7f3;
-      border-radius: 10px;
-      padding: 14px;
-    }
-    .result small {
-      display: block;
-      color: #657168;
-      font-size: 13px;
-      margin-bottom: 7px;
-    }
-    .result strong { font-size: 22px; }
-    .analysis-date {
-      border-top: 1px solid #e4e9e3;
-      margin-top: 18px;
-      padding-top: 16px;
-      font-size: 14px;
-    }
-    .message {
-      background: white;
-      padding: 22px;
-      border-radius: 12px;
-      text-align: center;
-      color: #657168;
-    }
-    footer {
-      text-align: center;
-      padding: 20px;
-      color: #657168;
-      font-size: 13px;
-    }
-    footer a { color: #24583a; }
-    [hidden] { display: none !important; }
-  </style>
-</head>
-<body>
-  <header>
-    <h1 class="brand">FRATELLI WINE</h1>
-    <p>Wine Laboratory · Tank Analysis</p>
-  </header>
+<script>
+  // Paste your deployed Google Apps Script /exec URL here.
+  const API_URL = "https://script.google.com/macros/s/AKfycbyvBBZWotfNwAg7BTP9Xs2yjy3OztSXYYhRpjkcBMn_C28xP5KKuCvb8h2gYy8Hru-y/exec
+";
 
-  <main>
-    <section class="search-box">
-      <label for="search">Search by Wine Name or Tank No.</label>
-      <input id="search" type="search"
-        placeholder="Enter wine name or tank number..."
-        autocomplete="off">
-      <p class="hint">Try: 1CT or T-94B</p>
-    </section>
+  const search = document.getElementById("search");
+  const card = document.getElementById("wineCard");
+  const message = document.getElementById("message");
 
-    <section id="wineCard" class="wine-card" hidden>
-      <div class="wine-heading">
-        <h2 id="wineName"></h2>
-        <span id="wineType" class="type"></span>
-      </div>
+  let wines = [];
+  let requestNumber = 0;
 
-      <p class="tank">Tank No.: <strong id="tankNo"></strong></p>
+  function loadWines() {
+    const thisRequest = ++requestNumber;
+    message.hidden = false;
+    message.textContent = "Loading wine analysis...";
 
-      <div class="results">
-        <div class="result">
-          <small>pH</small>
-          <strong id="ph"></strong>
-        </div>
-        <div class="result">
-          <small>TA</small>
-          <strong id="ta"></strong>
-        </div>
-        <div class="result">
-          <small>Alcohol</small>
-          <strong id="alc"></strong>
-        </div>
-        <div class="result">
-          <small>Free SO₂</small>
-          <strong id="fso2"></strong>
-        </div>
-        <div class="result">
-          <small>Total SO₂</small>
-          <strong id="tso2"></strong>
-        </div>
-      </div>
+    const callback = "fratelliCallback" + thisRequest;
 
-      <div class="analysis-date">
-        Latest analysis date:
-        <strong id="analysisDate"></strong>
-      </div>
-    </section>
+    window[callback] = function(data) {
+      delete window[callback];
 
-    <div id="message" class="message">
-      Enter a wine name or tank number to search.
-    </div>
-  </main>
+      if (thisRequest !== requestNumber) return;
 
-  <footer>
-    <p>
-      <a href="https://fratelliwines.in/" target="_blank"
-         rel="noopener">Fratelli Wines Official Website</a>
-    </p>
-    <p>Designed By Akash Bhalke</p>
-  </footer>
-
-  <script>
-    // DEMO DATA ONLY.
-    // We will connect this screen to Google Sheets next.
-    const wines = [
-      {
-        name: "1CT",
-        tank: "T-94B",
-        type: "WHITE",
-        ph: "3.43",
-        ta: "5.6",
-        alc: "12.5%",
-        fso2: "27",
-        tso2: "96",
-        date: "13-10-2026"
-      }
-    ];
-
-    const search = document.getElementById("search");
-    const card = document.getElementById("wineCard");
-    const message = document.getElementById("message");
-
-    function findWine() {
-      const query = search.value.trim().toLowerCase();
-
-      if (!query) {
+      if (data && data.error) {
         card.hidden = true;
         message.hidden = false;
-        message.textContent =
-          "Enter a wine name or tank number to search.";
+        message.textContent = "Sheet error: " + data.error;
         return;
       }
 
-      const matches = wines.filter(w =>
-        w.name.toLowerCase().includes(query) ||
-        w.tank.toLowerCase().includes(query)
-      );
-
-      if (matches.length === 0) {
+      if (!Array.isArray(data)) {
         card.hidden = true;
         message.hidden = false;
-        message.textContent = "No matching wine found.";
+        message.textContent = "Unexpected data received.";
         return;
       }
 
-      // Show the first match in this starter version.
-      const w = matches[0];
-      document.getElementById("wineName").textContent = w.name;
-      document.getElementById("tankNo").textContent = w.tank;
-      document.getElementById("wineType").textContent = w.type;
-      document.getElementById("ph").textContent = w.ph;
-      document.getElementById("ta").textContent = w.ta;
-      document.getElementById("alc").textContent = w.alc;
-      document.getElementById("fso2").textContent = w.fso2;
-      document.getElementById("tso2").textContent = w.tso2;
-      document.getElementById("analysisDate").textContent = w.date;
+      wines = data;
+      findWine();
+    };
 
-      card.hidden = false;
-      message.hidden = true;
+    const script = document.createElement("script");
+    script.src = API_URL + "?callback=" + callback +
+      "&_=" + Date.now();
+
+    script.onerror = function() {
+      delete window[callback];
+      if (thisRequest !== requestNumber) return;
+      card.hidden = true;
+      message.hidden = false;
+      message.textContent =
+        "Could not connect. Check the Apps Script URL and deployment.";
+    };
+
+    document.body.appendChild(script);
+  }
+
+  function findWine() {
+    const query = search.value.trim().toLowerCase();
+
+    if (!query) {
+      card.hidden = true;
+      message.hidden = false;
+      message.textContent =
+        "Enter a wine name or tank number to search.";
+      return;
     }
 
-    search.addEventListener("input", findWine);
-  </script>
-</body>
-</html>
+    const matches = wines.filter(w =>
+      String(w.name || "").toLowerCase().includes(query) ||
+      String(w.tank || "").toLowerCase().includes(query)
+    );
+
+    if (matches.length === 0) {
+      card.hidden = true;
+      message.hidden = false;
+      message.textContent = "No matching wine found.";
+      return;
+    }
+
+    const w = matches[0];
+
+    document.getElementById("wineName").textContent = w.name || "—";
+    document.getElementById("tankNo").textContent = w.tank || "—";
+    document.getElementById("wineType").textContent = w.type || "—";
+    document.getElementById("ph").textContent = w.ph ?? "—";
+    document.getElementById("ta").textContent = w.ta ?? "—";
+    document.getElementById("alc").textContent = w.alc ?? "—";
+    document.getElementById("fso2").textContent = w.fso2 ?? "—";
+    document.getElementById("tso2").textContent = w.tso2 ?? "—";
+    document.getElementById("analysisDate").textContent = w.date || "—";
+
+    card.hidden = false;
+    message.hidden = true;
+  }
+
+  search.addEventListener("input", findWine);
+
+  // Fetch fresh sheet data every 60 seconds.
+  loadWines();
+  setInterval(loadWines, 60000);
+</script>
