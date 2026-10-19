@@ -1,0 +1,11 @@
+{
+  "name": "Fratelli Wine",
+  "short_name": "Fratelli Wine",
+  "description": "Tank-wise wine analysis search",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fbf8f7",
+  "theme_color": "#5a1831",
+  "icons": []
+}

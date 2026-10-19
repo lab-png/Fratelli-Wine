@@ -1,104 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#5a1831">
+  <meta name="description" content="Search Fratelli wine tank analysis results.">
+  <title>Fratelli Wine</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="data:,">
+  <style>
+    :root { color-scheme: light; --wine:#5a1831; --wine2:#7b2947; --ink:#242126; --muted:#716a70; --paper:#fbf8f7; --line:#eadfe3; --white:#fff; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Arial,Helvetica,sans-serif; background:var(--paper); color:var(--ink); }
+    header { background:linear-gradient(135deg,var(--wine),#35101f); color:#fff; padding:24px 18px 26px; }
+    .head-inner { max-width:900px; margin:0 auto; }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .mark { width:44px; height:44px; display:grid; place-items:center; border:1px solid #ffffff80; border-radius:50%; font-size:23px; }
+    h1 { font-size:25px; margin:0; letter-spacing:.2px; }
+    .subtitle { margin:7px 0 0; color:#f2dfe6; font-size:13px; }
+    main { max-width:900px; margin:0 auto; padding:20px 16px 28px; }
+    .search-panel { background:#fff; padding:16px; border:1px solid var(--line); border-radius:16px; box-shadow:0 4px 18px #38101d0b; }
+    label { display:block; font-size:13px; font-weight:700; margin-bottom:8px; }
+    .search-row { display:flex; gap:8px; }
+    input { min-width:0; flex:1; padding:13px 14px; font-size:16px; border:1px solid #d8cbd0; border-radius:10px; outline:none; }
+    input:focus { border-color:var(--wine2); box-shadow:0 0 0 3px #7b29471a; }
+    button { border:0; border-radius:10px; background:var(--wine); color:#fff; padding:0 16px; font-size:14px; font-weight:700; cursor:pointer; }
+    button:active { transform:translateY(1px); }
+    .hint { color:var(--muted); font-size:12px; margin:9px 0 0; line-height:1.5; }
+    .status { margin:16px 2px; font-size:13px; color:var(--muted); line-height:1.5; }
+    .results { display:grid; gap:13px; margin-top:14px; }
+    .wine-card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:17px; box-shadow:0 4px 18px #38101d08; }
+    .wine-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding-bottom:13px; border-bottom:1px solid #f0e8eb; }
+    .wine-name { font-size:20px; font-weight:800; overflow-wrap:anywhere; }
+    .tank { margin-top:5px; font-size:20px; font-weight:800; color:var(--wine); overflow-wrap:anywhere; }
+    .type { background:#f5e9ee; color:var(--wine); font-size:12px; font-weight:800; padding:7px 10px; border-radius:999px; white-space:nowrap; }
+    .analysis-date { margin-top:12px; font-size:12px; color:var(--muted); }
+    .metrics { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; margin-top:14px; }
+    .metric { background:#faf6f7; border:1px solid #f1e7eb; border-radius:10px; padding:10px 8px; min-width:0; }
+    .metric-label { color:var(--muted); font-size:11px; font-weight:700; margin-bottom:6px; }
+    .metric-value { font-size:15px; font-weight:800; overflow-wrap:anywhere; }
+    footer { text-align:center; color:#8a7d83; font-size:12px; padding:12px 16px 24px; }
+    .small { font-size:11px; }
+    @media (max-width:560px) {
+      header { padding:20px 16px 22px; } h1 { font-size:23px; }
+      .search-row { flex-direction:column; } button { min-height:44px; }
+      .metrics { grid-template-columns:repeat(3,minmax(0,1fr)); }
+      .wine-name,.tank { font-size:18px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="head-inner">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">🍷</div>
+        <div>
+          <h1>Fratelli Wine</h1>
+          <p class="subtitle">Tank-wise wine analysis</p>
+        </div>
+      </div>
+    </div>
+  </header>
+  <main>
+    <section class="search-panel" aria-label="Search wines">
+      <label for="search">Search by wine code/name or tank number</label>
+      <div class="search-row">
+        <input id="search" type="search" placeholder="e.g. T-94 or wine code" autocomplete="off">
+        <button id="refresh" type="button">Refresh data</button>
+      </div>
+      <p class="hint">Search by tank number or code. The app checks the spreadsheet for updates every 60 seconds.</p>
+    </section>
+    <p id="status" class="status" role="status">Connecting to the Google Sheet…</p>
+    <section id="results" class="results" aria-live="polite"></section>
+  </main>
+  <footer>Designed By Akash Bhalke</footer>
 
-<script>
-  // Paste your deployed Google Apps Script /exec URL here.
-  const API_URL = "https://script.google.com/macros/s/AKfycbyvBBZWotfNwAg7BTP9Xs2yjy3OztSXYYhRpjkcBMn_C28xP5KKuCvb8h2gYy8Hru-y/exec
-";
+  <script>
+    // This app reads the spreadsheet directly. No Apps Script project is required.
+    const SPREADSHEET_ID = "19OaS6pZTK8Z3PUcrrrL-y-fm-RqXPeXKqqgXVt9Woqs";
+    const SHEET_GID = "1330000360";
+    const searchInput = document.getElementById("search");
+    const statusEl = document.getElementById("status");
+    const resultsEl = document.getElementById("results");
+    const refreshButton = document.getElementById("refresh");
+    let wines = [];
+    let loading = false;
+    let lastLoadedAt = null;
 
-  const search = document.getElementById("search");
-  const card = document.getElementById("wineCard");
-  const message = document.getElementById("message");
-
-  let wines = [];
-  let requestNumber = 0;
-
-  function loadWines() {
-    const thisRequest = ++requestNumber;
-    message.hidden = false;
-    message.textContent = "Loading wine analysis...";
-
-    const callback = "fratelliCallback" + thisRequest;
-
-    window[callback] = function(data) {
-      delete window[callback];
-
-      if (thisRequest !== requestNumber) return;
-
-      if (data && data.error) {
-        card.hidden = true;
-        message.hidden = false;
-        message.textContent = "Sheet error: " + data.error;
+    function normalize(value) {
+      return String(value ?? "").toLowerCase().normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+    }
+    function cellValue(cell) {
+      if (!cell) return "";
+      if (cell.f !== undefined && cell.f !== null) return String(cell.f);
+      const value = cell.v;
+      if (value === null || value === undefined) return "";
+      if (typeof value === "object" && value instanceof Date) return formatDate(value);
+      if (typeof value === "string") {
+        const match = value.match(/^Date\((\d{4}),\s*(\d{1,2}),\s*(\d{1,2})\)$/);
+        if (match) return `${String(Number(match[3])).padStart(2,"0")}-${String(Number(match[2])+1).padStart(2,"0")}-${match[1]}`;
+      }
+      return String(value);
+    }
+    function formatDate(date) {
+      return `${String(date.getDate()).padStart(2,"0")}-${String(date.getMonth()+1).padStart(2,"0")}-${date.getFullYear()}`;
+    }
+    function findCol(headers, aliases) {
+      const wanted = aliases.map(normalize);
+      return headers.findIndex(h => wanted.includes(normalize(h)));
+    }
+    function readSheetData(payload) {
+      const table = payload && payload.table;
+      if (!table || !Array.isArray(table.cols) || !Array.isArray(table.rows)) {
+        throw new Error("The sheet response was not in the expected format.");
+      }
+      const headers = table.cols.map(c => c.label || c.id || "");
+      const columns = {
+        tank: findCol(headers, ["TANK NO", "Tank No", "Tank Number", "Tank"]),
+        name: findCol(headers, ["CODE", "Wine Name", "Wine", "Brand", "Wine Code"]),
+        type: findCol(headers, ["RED/WHITE/ROSE", "Wine Type", "Type", "Colour", "Color"]),
+        date: findCol(headers, ["Date of Analysis", "Analysis Date", "Latest Analysis Date", "Last Analysis Date"]),
+        alc: findCol(headers, ["Alc %", "ALC", "Alcohol", "Alcohol %"]),
+        ta: findCol(headers, ["T.A", "TA", "Total Acidity"]),
+        ph: findCol(headers, ["pH", "PH"]),
+        fso2: findCol(headers, ["FSO2", "Free SO2", "Free SO₂"]),
+        tso2: findCol(headers, ["TSO2", "Total SO2", "Total SO₂"])
+      };
+      const missing = Object.keys(columns).filter(k => columns[k] < 0);
+      if (missing.length) {
+        throw new Error("Could not find these headings: " + missing.join(", ") + ". Confirm the first row is the header row and that the sheet is shared with anyone who has the link.");
+      }
+      return table.rows.map(row => {
+        const cells = row.c || [];
+        const get = key => cellValue(cells[columns[key]]);
+        return {
+          tank: get("tank"), name: get("name"), type: get("type"),
+          date: get("date"), alc: get("alc"), ta: get("ta"),
+          ph: get("ph"), fso2: get("fso2"), tso2: get("tso2")
+        };
+      }).filter(w => w.tank || w.name);
+    }
+    function loadWines() {
+      if (loading) return;
+      loading = true;
+      statusEl.textContent = "Loading latest spreadsheet data…";
+      refreshButton.disabled = true;
+      const timeoutId = setTimeout(() => {
+        if (loading) {
+          loading = false;
+          refreshButton.disabled = false;
+          statusEl.textContent = "The sheet did not respond. Check that it is shared as 'Anyone with the link — Viewer' and try again.";
+        }
+      }, 15000);
+      // Google Visualization responds by calling google.visualization.Query.setResponse.
+      window.google = window.google || {};
+      window.google.visualization = window.google.visualization || {};
+      window.google.visualization.Query = window.google.visualization.Query || {};
+      window.google.visualization.Query.setResponse = function(payload) {
+        clearTimeout(timeoutId);
+        loading = false;
+        refreshButton.disabled = false;
+        try {
+          if (payload && payload.status === "error") throw new Error(payload.errors?.map(e => e.detailed_message || e.message).join("; ") || "Google Sheets returned an error.");
+          wines = readSheetData(payload);
+          lastLoadedAt = new Date();
+          statusEl.textContent = `Loaded ${wines.length} row(s). Last refreshed ${lastLoadedAt.toLocaleTimeString()}.`;
+          renderResults();
+        } catch (error) {
+          statusEl.textContent = "Sheet error: " + error.message;
+          resultsEl.innerHTML = "";
+        }
+      };
+      const script = document.createElement("script");
+      script.src = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&gid=${SHEET_GID}&headers=1&_=${Date.now()}`;
+      script.onerror = () => {
+        clearTimeout(timeoutId);
+        loading = false;
+        refreshButton.disabled = false;
+        statusEl.textContent = "Could not load the spreadsheet. Check its sharing permissions and the sheet tab ID.";
+      };
+      document.body.appendChild(script);
+      // Remove the script element after it has had time to execute.
+      script.onload = () => { script.remove(); };
+    }
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, ch => ({
+        "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+      })[ch]);
+    }
+    function metric(label, value) {
+      return `<div class="metric"><div class="metric-label">${label}</div><div class="metric-value">${escapeHtml(value || "—")}</div></div>`;
+    }
+    function renderResults() {
+      const query = normalize(searchInput.value.trim());
+      if (!query) {
+        resultsEl.innerHTML = "";
+        statusEl.textContent = wines.length
+          ? `Loaded ${wines.length} row(s). Enter a wine code/name or tank number to search.`
+          : "No wine records found in the sheet.";
         return;
       }
-
-      if (!Array.isArray(data)) {
-        card.hidden = true;
-        message.hidden = false;
-        message.textContent = "Unexpected data received.";
+      const matches = wines.filter(w => normalize(w.name).includes(query) || normalize(w.tank).includes(query));
+      if (!matches.length) {
+        resultsEl.innerHTML = "";
+        statusEl.textContent = `No matching wine or tank found for "${searchInput.value.trim()}".`;
         return;
       }
-
-      wines = data;
-      findWine();
-    };
-
-    const script = document.createElement("script");
-    script.src = API_URL + "?callback=" + callback +
-      "&_=" + Date.now();
-
-    script.onerror = function() {
-      delete window[callback];
-      if (thisRequest !== requestNumber) return;
-      card.hidden = true;
-      message.hidden = false;
-      message.textContent =
-        "Could not connect. Check the Apps Script URL and deployment.";
-    };
-
-    document.body.appendChild(script);
-  }
-
-  function findWine() {
-    const query = search.value.trim().toLowerCase();
-
-    if (!query) {
-      card.hidden = true;
-      message.hidden = false;
-      message.textContent =
-        "Enter a wine name or tank number to search.";
-      return;
+      statusEl.textContent = `${matches.length} match(es) found.`;
+      resultsEl.innerHTML = matches.map(w => `
+        <article class="wine-card">
+          <div class="wine-top">
+            <div>
+              <div class="wine-name">${escapeHtml(w.name || "Wine code not entered")}</div>
+              <div class="tank">${escapeHtml(w.tank || "Tank number not entered")}</div>
+            </div>
+            <span class="type">${escapeHtml(w.type || "Type —")}</span>
+          </div>
+          <div class="analysis-date">Latest analysis date: <strong>${escapeHtml(w.date || "—")}</strong></div>
+          <div class="metrics">
+            ${metric("pH",w.ph)}
+            ${metric("TA",w.ta)}
+            ${metric("ALC %",w.alc)}
+            ${metric("Free SO₂",w.fso2)}
+            ${metric("Total SO₂",w.tso2)}
+          </div>
+        </article>`).join("");
     }
+    searchInput.addEventListener("input", renderResults);
+    refreshButton.addEventListener("click", loadWines);
+    loadWines();
+    setInterval(loadWines, 60000);
 
-    const matches = wines.filter(w =>
-      String(w.name || "").toLowerCase().includes(query) ||
-      String(w.tank || "").toLowerCase().includes(query)
-    );
-
-    if (matches.length === 0) {
-      card.hidden = true;
-      message.hidden = false;
-      message.textContent = "No matching wine found.";
-      return;
+    if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
     }
-
-    const w = matches[0];
-
-    document.getElementById("wineName").textContent = w.name || "—";
-    document.getElementById("tankNo").textContent = w.tank || "—";
-    document.getElementById("wineType").textContent = w.type || "—";
-    document.getElementById("ph").textContent = w.ph ?? "—";
-    document.getElementById("ta").textContent = w.ta ?? "—";
-    document.getElementById("alc").textContent = w.alc ?? "—";
-    document.getElementById("fso2").textContent = w.fso2 ?? "—";
-    document.getElementById("tso2").textContent = w.tso2 ?? "—";
-    document.getElementById("analysisDate").textContent = w.date || "—";
-
-    card.hidden = false;
-    message.hidden = true;
-  }
-
-  search.addEventListener("input", findWine);
-
-  // Fetch fresh sheet data every 60 seconds.
-  loadWines();
-  setInterval(loadWines, 60000);
-</script>
+  </script>
+</body>
+</html>
